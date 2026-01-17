@@ -1,7 +1,7 @@
-
 export type UserRole = 'candidate' | 'employer';
 
 export interface Education {
+  college: string;      // Added for NIT Rourkela/College info
   degree: string;
   field: string;
   cgpa: number;
@@ -10,6 +10,10 @@ export interface Education {
 export interface Candidate {
   id: string;
   name: string;
+  contact_email?: string; // Added to match your Profile View
+  contact_phone?: string; // Added to match your Profile View
+  address: string;        // Added for location details
+  bio?: string;           // Added for professional summary
   skills: string[];
   experience_years: number;
   preferred_locations: string[];
@@ -17,12 +21,14 @@ export interface Candidate {
   expected_salary: number;
   education: Education;
   avatar?: string;
+  photoURL?: string;      // Added for Firebase Auth image compatibility
 }
 
 export interface Job {
   job_id: string;
   title: string;
   required_skills: string[];
+  description: string;
   experience_required: string; // Format: "0-2 years"
   location: string;
   salary_range: [number, number];
