@@ -1,7 +1,7 @@
-export type UserRole = 'candidate' | 'employer';
+export type UserRole = "candidate" | "employer";
 
 export interface Education {
-  college: string;      // Added for NIT Rourkela/College info
+  college: string;
   degree: string;
   field: string;
   cgpa: number;
@@ -10,10 +10,11 @@ export interface Education {
 export interface Candidate {
   id: string;
   name: string;
-  contact_email?: string; // Added to match your Profile View
-  contact_phone?: string; // Added to match your Profile View
-  address: string;        // Added for location details
-  bio?: string;           // Added for professional summary
+  current_role?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  address: string;
+  bio?: string;
   skills: string[];
   experience_years: number;
   preferred_locations: string[];
@@ -21,7 +22,7 @@ export interface Candidate {
   expected_salary: number;
   education: Education;
   avatar?: string;
-  photoURL?: string;      // Added for Firebase Auth image compatibility
+  photoURL?: string;
 }
 
 export interface Job {
@@ -29,12 +30,13 @@ export interface Job {
   title: string;
   required_skills: string[];
   description: string;
-  experience_required: string; // Format: "0-2 years"
+  experience_required: string;
   location: string;
   salary_range: [number, number];
   company: string;
 }
 
+// --- Matching Engine Types ---
 export interface MatchBreakdown {
   skill_match: number;
   location_match: number;
@@ -54,18 +56,41 @@ export interface MatchResult {
   recommendation_reason: string;
 }
 
-export interface WeightConfig {
-  skill: number;
-  location: number;
-  salary: number;
-  experience: number;
-  role: number;
+// --- Skills Gap & Salary Analysis Types ---
+export interface RoadmapPhase {
+  phase: number;
+  duration_months: number;
+  focus: string;
+  skills_to_learn: string[];
+  priority: string;
+  reasoning: string;
 }
 
-export const DEFAULT_WEIGHTS: WeightConfig = {
-  skill: 0.40,
-  location: 0.20,
-  salary: 0.15,
-  experience: 0.15,
-  role: 0.10
-};
+export interface RadarDataPoint {
+  subject: string;
+  A: number;
+  B: number;
+  fullMark: number;
+}
+
+export interface GapAnalysisMetrics {
+  matching_skills: string[];
+  missing_skills: string[];
+  skill_gap_percentage: number;
+  readiness_score: number;
+  estimated_learning_time_months: number;
+}
+
+// ▼▼▼ NEW INTERFACE FOR SALARY ▼▼▼
+export interface SalaryPoint {
+  year: string;
+  salary: number;
+  role: string;
+}
+
+export interface SkillGapAnalysisResult {
+  analysis: GapAnalysisMetrics;
+  learning_roadmap: RoadmapPhase[];
+  radar_data: RadarDataPoint[];
+  salary_growth?: SalaryPoint[]; // <--- ADDED
+}
