@@ -1,10 +1,27 @@
-import React, { useState } from 'react';
-import { Briefcase, Plus, BrainCircuit, Sparkles, X } from 'lucide-react';
-import { MatchResult, Job } from '../../types';
-import CandidateProfile from './CandidateProfile';
-import JobDescriptionGenerator from './JobDescriptionGenerator';
-import { fetchEmployerApplications } from '../../services/dbService';
-import { auth } from '../../firebase';
+import React, { useState } from "react";
+import {
+  Briefcase,
+  Plus,
+  Brain, // Swapped from BrainCircuit
+  X,
+  Trash2,
+  Calendar,
+  UserMinus,
+  Search,
+  Sparkles,
+  CheckCircle2,
+  Star,
+  CircleSlash // Swapped from Ban
+} from "lucide-react";
+import { MatchResult, Job } from "../../types";
+import CandidateProfile from "./CandidateProfile";
+import JobDescriptionGenerator from "./JobDescriptionGenerator";
+import {
+  fetchEmployerApplications,
+  deleteJobFromFirestore,
+  updateApplicationStatus, 
+} from "../../services/dbService";
+import { auth } from "../../firebase";
 
 interface EmployerDashboardProps {
   jobs: Job[];
@@ -23,11 +40,19 @@ interface EmployerDashboardProps {
 }
 
 const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
-  jobs, selectedJob, setSelectedJob,
-  matches, selectedMatch, setSelectedMatch,
-  isJobModalOpen, setIsJobModalOpen,
-  newJob, setNewJob, handleCreateJob,
-  isAiExplaining, aiExplanation
+  jobs,
+  selectedJob,
+  setSelectedJob,
+  matches,
+  selectedMatch,
+  setSelectedMatch,
+  isJobModalOpen,
+  setIsJobModalOpen,
+  newJob,
+  setNewJob,
+  handleCreateJob,
+  isAiExplaining,
+  aiExplanation,
 }) => {
   const [showGenerator, setShowGenerator] = useState(false);
   const [applications, setApplications] = useState<any[]>([]);
@@ -38,54 +63,105 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
     const uid = auth.currentUser?.uid;
     if (!uid) return;
     let mounted = true;
-    fetchEmployerApplications(uid).then((res) => {
-      if (!mounted) return;
-      setApplications(res || []);
-    }).catch(err => console.error('Error loading applications', err));
-    return () => { mounted = false; };
-  }, [selectedJob]);
-
-  // Close applicant modal with Escape key
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedApplicant(null);
+    fetchEmployerApplications(uid)
+      .then((res) => {
+        if (!mounted) return;
+        setApplications(res || []);
+      })
+      .catch((err) => console.error("Error loading applications", err));
+    return () => {
+      mounted = false;
     };
-    if (selectedApplicant) window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [selectedApplicant]);
+  }, [selectedJob, jobs]);
+
+  // --- HANDLERS ---
+
+  const handleStatusChange = async (appId: string, status: string) => {
+    try {
+      await updateApplicationStatus(appId, status);
+      setApplications((prev) =>
+        prev.map((a) =>
+          a.application_id === appId ? { ...a, status: status } : a
+        )
+      );
+      if (selectedApplicant && selectedApplicant.application_id === appId) {
+        setSelectedApplicant({ ...selectedApplicant, status: status });
+      }
+    } catch (err) {
+      console.error("Status update failed:", err);
+    }
+  };
+
+  const handleRejectCandidate = async (appId: string) => {
+    if (!window.confirm("Are you sure you want to reject this candidate? They will not be able to re-apply for this specific role.")) return;
+    try {
+      await updateApplicationStatus(appId, 'rejected');
+      setApplications((prev) =>
+        prev.map((a) => a.application_id === appId ? { ...a, status: 'rejected' } : a)
+      );
+      if (selectedApplicant && selectedApplicant.application_id === appId) {
+        setSelectedApplicant({ ...selectedApplicant, status: 'rejected' });
+      }
+    } catch (err) {
+      alert("Failed to reject candidate.");
+    }
+  };
+
+  const handleDeleteJob = async (e: React.MouseEvent, jobId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("CRITICAL: Delete vacancy and all applications permanently?")) return;
+    try {
+      await deleteJobFromFirestore(jobId);
+      window.location.reload();
+    } catch (err) {
+      alert("Failed to delete the vacancy.");
+    }
+  };
+
+  // Logic for the "Publish Immediately" button inside the AI Generator
+  const handleAiPublish = async (generatedText: string) => {
+    // We update a local object first because React state updates (setNewJob) 
+    // are asynchronous and might not be ready when handleCreateJob is called.
+    const updatedJob = { ...newJob, description: generatedText };
+    setNewJob(updatedJob);
+    
+    // Use a small timeout to ensure state update is processed or 
+    // ideally handleCreateJob should be refactored to accept a job object.
+    setTimeout(() => {
+      handleCreateJob();
+      setShowGenerator(false);
+    }, 150);
+  };
 
   return (
     <div className="grid lg:grid-cols-12 gap-8">
-      {/* Left Sidebar - Active Vacancies */}
+      {/* Left Sidebar - Vacancy List */}
       <div className="lg:col-span-4 space-y-6">
         <section className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 overflow-hidden relative">
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-indigo-100 text-indigo-600">
-                <Briefcase size={20}/>
+                <Briefcase size={20} />
               </div>
-              <h2 className="text-xl font-black text-slate-900">Active Vacancies</h2>
+              <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Vacancies</h2>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => setIsJobModalOpen(true)} className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
                 <Plus size={20} />
               </button>
-              <button onClick={() => setShowGenerator(true)} className="p-2 bg-white text-indigo-600 rounded-xl hover:bg-slate-50 transition-all border border-slate-100">
-                JD
-              </button>
+              <button onClick={() => setShowGenerator(true)} className="p-2 bg-white text-indigo-600 rounded-xl hover:bg-slate-50 transition-all border border-slate-100 font-bold text-[10px]">JD GEN</button>
             </div>
           </div>
 
           <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-            {jobs.map(job => (
-              <button key={job.job_id} onClick={() => setSelectedJob(job)} className={`w-full p-5 rounded-3xl text-left transition-all relative ${selectedJob?.job_id === job.job_id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 scale-[1.02]' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
-                <div className="flex justify-between items-start mb-2">
-                   <div className="font-black text-lg leading-none">{job.title}</div>
-                </div>
-                <div className={`text-[10px] font-bold uppercase tracking-widest ${selectedJob?.job_id === job.job_id ? 'text-indigo-100' : 'text-slate-400'}`}>
-                  {job.location} • {job.experience_required}
-                </div>
-              </button>
+            {jobs.map((job) => (
+              <div key={job.job_id} className="group relative">
+                <button onClick={() => setSelectedJob(job)} className={`w-full p-5 rounded-3xl text-left transition-all border-2 ${selectedJob?.job_id === job.job_id ? "bg-indigo-600 text-white border-indigo-600 shadow-xl scale-[1.02]" : "bg-slate-50 text-slate-600 border-transparent hover:bg-slate-100"}`}>
+                  <div className="font-black text-lg leading-none mb-2 pr-8">{job.title}</div>
+                  <div className={`text-[10px] font-bold uppercase tracking-widest ${selectedJob?.job_id === job.job_id ? "text-indigo-100" : "text-slate-400"}`}>{job.location} • {(job as any).deadline ? `Ends: ${(job as any).deadline}` : "Open Ended"}</div>
+                </button>
+                <button onClick={(e) => handleDeleteJob(e, job.job_id)} className={`absolute top-5 right-4 p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100 ${selectedJob?.job_id === job.job_id ? "text-white/60 hover:text-white hover:bg-white/10" : "text-slate-300 hover:text-red-500 hover:bg-red-50"}`}><Trash2 size={18} /></button>
+              </div>
             ))}
           </div>
         </section>
@@ -93,127 +169,160 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
 
       {/* Main Content Area */}
       <div className="lg:col-span-8 space-y-6">
-         {/* Context Header */}
-         <div className="rounded-[32px] p-10 text-white shadow-2xl overflow-hidden relative transition-all duration-700 bg-indigo-600">
+        <div className="rounded-[32px] p-10 text-white shadow-2xl overflow-hidden relative transition-all duration-700 bg-indigo-600">
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-                <BrainCircuit className="text-white animate-pulse" size={32} />
-                <div className="text-sm font-black tracking-widest uppercase opacity-70">
-                  Hiring Intelligence: {selectedJob?.title}
-                </div>
+            <div className="flex items-center gap-3 mb-4 opacity-70">
+              <Brain size={24} />
+              <div className="text-xs font-black uppercase tracking-[0.2em]">Hiring Intelligence: {selectedJob ? selectedJob.title : "Vacant"}</div>
             </div>
-            <h2 className="text-4xl font-black mb-4">
-              {matches.length} Candidates Screened
-            </h2>
+            <h2 className="text-4xl font-black mb-2">{selectedJob ? `${applications.filter((a) => a.job_id === selectedJob.job_id).length} Candidates Applied` : "Pipeline Overview"}</h2>
           </div>
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/10 blur-[100px] rounded-full translate-x-20 -translate-y-20"></div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          
-
-          {/* Match Analysis / Applications */}
-          
-          {/* Applications list for selected job */}
-          <div className="lg:col-span-8">
-            <section className="bg-white rounded-[24px] border border-slate-100 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-black text-lg">Applications</h3>
-                <div className="text-sm text-slate-400">{applications.length} total</div>
-              </div>
-              {selectedJob ? (
-                <div>
-                  {applications.filter(a => a.job_id === selectedJob.job_id).length === 0 ? (
-                    <div className="text-slate-500">No applications yet for this vacancy.</div>
-                  ) : (
-                    <div className="divide-y">
-                      {applications.filter(a => a.job_id === selectedJob.job_id).map(app => (
-                        <div key={app.application_id} className="py-4 flex items-center justify-between">
-                          <div>
-                            <div className="font-black">{app.candidate_name || app.candidate_profile?.name || 'Applicant'}</div>
-                            <div className="text-sm text-slate-400">{new Date(app.applied_at).toLocaleString()}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => setSelectedApplicant(app.candidate_profile)} className="px-3 py-2 bg-indigo-50 text-indigo-600 rounded">View Profile</button>
-                            <button className="px-3 py-2 border rounded">Mark Reviewed</button>
-                          </div>
-                        </div>
-                      ))}
+        {/* Pipeline List */}
+        <section className="bg-white rounded-[40px] border border-slate-100 p-8 shadow-sm min-h-[400px]">
+          <h3 className="font-black text-xl text-slate-900 uppercase flex items-center gap-2 mb-8"><Search size={20} className="text-indigo-600" /> Pipeline</h3>
+          <div className="space-y-4">
+            {selectedJob ? (
+              applications.filter((a) => a.job_id === selectedJob.job_id).map((app) => (
+                <div key={app.application_id} className={`p-6 rounded-[28px] border flex items-center justify-between transition-all group ${app.status === 'rejected' ? 'bg-slate-50 opacity-60 border-slate-200' : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-xl'}`}>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <div className="font-black text-slate-900 text-lg">{app.candidate_name || "Applicant"}</div>
+                      {app.status === 'reviewed' && <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">Reviewed</span>}
+                      {app.status === 'shortlisted' && <span className="bg-amber-100 text-amber-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter flex items-center gap-0.5"><Star size={8} fill="currentColor" /> Shortlisted</span>}
+                      {app.status === 'rejected' && <span className="bg-red-100 text-red-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter flex items-center gap-0.5"><CircleSlash size={8} /> Rejected</span>}
                     </div>
-                  )}
+                    <div className="text-xs text-slate-400 font-bold uppercase">{new Date(app.applied_at).toLocaleString()}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setSelectedApplicant({ ...app.candidate_profile, application_id: app.application_id, status: app.status })} className="px-6 py-2 bg-white text-indigo-600 rounded-xl font-black text-xs border border-slate-100 hover:bg-indigo-50">VIEW PROFILE</button>
+                    {app.status !== 'rejected' && (
+                      <button onClick={() => handleRejectCandidate(app.application_id)} className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><UserMinus size={20} /></button>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div className="text-slate-500">Select a vacancy to see its applications.</div>
-              )}
-            </section>
+              ))
+            ) : (
+              <div className="text-center py-20 text-slate-400 font-bold">Select a vacancy to manage pipeline.</div>
+            )}
           </div>
-        </div>
+        </section>
       </div>
 
-      {/* CREATE JOB MODAL */}
+      {/* --- MODALS SECTION --- */}
+
+      {/* 1. ADD VACANCY MODAL */}
       {isJobModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsJobModalOpen(false)}></div>
-          <div className="bg-white w-full max-w-2xl rounded-[48px] shadow-2xl relative z-10 p-10 overflow-hidden border border-slate-100">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsJobModalOpen(false)}></div>
+          <div className="bg-white w-full max-w-2xl rounded-[48px] shadow-2xl relative z-10 p-12 border border-slate-100 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-10">
-               <div>
-                  <h2 className="text-3xl font-black text-slate-900 mb-2">New Vacancy</h2>
-                  <p className="text-slate-400 font-medium">Define your target professional profile.</p>
-               </div>
-               <button onClick={() => setIsJobModalOpen(false)} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all"><X size={24} className="text-slate-400" /></button>
+              <h2 className="text-4xl font-black text-slate-900 mb-2">New Vacancy</h2>
+              <button onClick={() => setIsJobModalOpen(false)} className="p-4 bg-slate-50 hover:bg-slate-100 rounded-3xl transition-all"><X size={24} /></button>
             </div>
+            
             <div className="space-y-6">
-               <div className="grid md:grid-cols-2 gap-6">
-                  <input type="text" placeholder="Job Title" className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:bg-white focus:border-indigo-500 transition-all outline-none font-bold" value={newJob.title} onChange={e => setNewJob({...newJob, title: e.target.value})} />
-                  <select className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:bg-white focus:border-indigo-500 transition-all outline-none font-bold" value={newJob.location} onChange={e => setNewJob({...newJob, location: e.target.value})}>
-                    <option>Remote</option><option>Bangalore</option><option>Hyderabad</option>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4">Job Title</label>
+                  <input type="text" placeholder="e.g. Lead Dev" className="w-full px-6 py-5 bg-slate-50 rounded-3xl outline-none font-bold" value={newJob.title} onChange={(e) => setNewJob({ ...newJob, title: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4">Location</label>
+                  <select className="w-full px-6 py-5 bg-slate-50 rounded-3xl outline-none font-bold" value={newJob.location} onChange={(e) => setNewJob({ ...newJob, location: e.target.value })}>
+                    <option>Remote</option><option>Bangalore</option><option>Hyderabad</option><option>Rourkela</option>
                   </select>
-               </div>
-               <input type="text" placeholder="Required Expertise (Comma separated)" className="w-full px-6 py-4 bg-slate-50 rounded-2xl border border-transparent focus:bg-white focus:border-indigo-500 transition-all outline-none font-bold" value={newJob.required_skills?.join(", ")} onChange={e => setNewJob({...newJob, required_skills: e.target.value.split(",").map(s => s.trim())})} />
-               <button onClick={handleCreateJob} className="w-full py-6 bg-indigo-600 text-white rounded-[24px] font-black text-lg shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all mt-6">Publish Opportunity</button>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4">Min Salary (Annual)</label>
+                  <input type="number" placeholder="8,00,000" className="w-full px-6 py-5 bg-slate-50 rounded-3xl outline-none font-bold" value={newJob.salary_range ? newJob.salary_range[0] : ""} onChange={(e) => setNewJob({ ...newJob, salary_range: [parseInt(e.target.value) || 0, newJob.salary_range?.[1] || 0] })} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4">Max Salary (Annual)</label>
+                  <input type="number" placeholder="15,00,000" className="w-full px-6 py-5 bg-slate-50 rounded-3xl outline-none font-bold" value={newJob.salary_range ? newJob.salary_range[1] : ""} onChange={(e) => setNewJob({ ...newJob, salary_range: [newJob.salary_range?.[0] || 0, parseInt(e.target.value) || 0] })} />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4">Application Deadline</label>
+                <input type="date" className="w-full px-6 py-5 bg-slate-50 rounded-3xl outline-none font-bold" value={(newJob as any).deadline || ""} onChange={(e) => setNewJob({ ...newJob, deadline: e.target.value } as any)} />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-4">Required Skills (Comma separated)</label>
+                <input type="text" placeholder="React, Node, Firebase" className="w-full px-6 py-5 bg-slate-50 rounded-3xl outline-none font-bold" value={newJob.required_skills?.join(", ") || ""} onChange={(e) => setNewJob({ ...newJob, required_skills: e.target.value.split(",").map(s => s.trim()) })} />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex justify-between items-center pr-4">
+                  <label className="text-[10px] font-black uppercase text-slate-400 ml-4">Job Description</label>
+                  <button onClick={() => { setIsJobModalOpen(false); setShowGenerator(true); }} className="text-[10px] font-black text-indigo-600 flex items-center gap-1 hover:underline"><Sparkles size={12} /> USE AI GENERATOR</button>
+                </div>
+                <textarea placeholder="Describe the role responsibilities..." rows={5} className="w-full px-6 py-5 bg-slate-50 rounded-3xl outline-none font-bold resize-none" value={newJob.description || ""} onChange={(e) => setNewJob({ ...newJob, description: e.target.value })} />
+              </div>
+
+              <button onClick={handleCreateJob} className="w-full py-7 bg-indigo-600 text-white rounded-[32px] font-black text-xl hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-xl shadow-indigo-100">Publish Vacancy</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* 2. AI GENERATOR MODAL */}
       {showGenerator && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowGenerator(false)}></div>
-          <div className="bg-white w-full max-w-3xl rounded-[24px] shadow-2xl relative z-10 p-6 overflow-hidden border border-slate-100">
-            <div className="flex justify-end mb-4">
-              <button onClick={() => setShowGenerator(false)} className="p-2 bg-slate-50 rounded-lg">Close</button>
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowGenerator(false)}></div>
+          <div className="bg-white w-full max-w-4xl rounded-[40px] shadow-2xl relative z-10 p-10 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black text-slate-900 flex items-center gap-3"><Sparkles className="text-indigo-600" /> AI Description Generator</h3>
+              <button onClick={() => setShowGenerator(false)} className="p-3 bg-slate-50 rounded-2xl hover:bg-red-50 transition-all"><X size={20} /></button>
             </div>
-            <JobDescriptionGenerator onClose={() => setShowGenerator(false)} />
+
+            <JobDescriptionGenerator 
+              onClose={() => setShowGenerator(false)} 
+              salaryRange={newJob.salary_range || [0, 0]}
+              setSalaryRange={(range: [number, number]) => setNewJob({ ...newJob, salary_range: range })}
+              onUseDescription={(aiText) => {
+                setNewJob({ ...newJob, description: aiText });
+                setShowGenerator(false);
+                setIsJobModalOpen(true); 
+              }} 
+              onPublish={handleAiPublish}
+            />
           </div>
         </div>
       )}
-      {/* Applicant profile modal */}
+
+      {/* 3. CANDIDATE DEEP DIVE MODAL */}
       {selectedApplicant && (
-        <div className="fixed inset-0 z-[350] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" 
-            onClick={() => setSelectedApplicant(null)}
-          ></div>
-          
-          <div className="bg-white w-full max-w-3xl rounded-[24px] shadow-2xl relative z-10 p-6 border border-slate-100 
-            flex flex-col max-h-[90vh]" 
-          >
-            {/* 1. Added 'flex flex-col': To organize layout vertically 
-              2. Added 'max-h-[90vh]': Ensures modal never exceeds 90% of screen height
-            */}
-
-            <button 
-              onClick={() => setSelectedApplicant(null)} 
-              aria-label="Close profile" 
-              className="absolute top-4 right-4 p-2 bg-slate-50 rounded-lg shadow-sm z-20"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="pt-4 overflow-y-auto">
-              {/* 3. Added 'overflow-y-auto': Only this section will scroll 
-                    while the modal and close button stay fixed.
-              */}
+        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedApplicant(null)}></div>
+          <div className="bg-white w-full max-w-5xl rounded-[40px] shadow-2xl relative z-10 flex flex-col max-h-[90vh] overflow-hidden border border-white/20">
+            <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-white sticky top-0 z-20">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full animate-pulse ${selectedApplicant.status === 'rejected' ? 'bg-red-500' : selectedApplicant.status === 'shortlisted' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                <span className="font-black text-slate-900 uppercase tracking-widest text-[10px]">Applicant Deep Dive</span>
+              </div>
+              <button onClick={() => setSelectedApplicant(null)} className="p-3 bg-slate-50 hover:bg-red-50 hover:text-red-500 rounded-2xl transition-all"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto p-10 custom-scrollbar bg-slate-50/20 flex-1">
               <CandidateProfile candidate={selectedApplicant} />
+            </div>
+            <div className="p-8 bg-white border-t border-slate-50 flex gap-4">
+              {selectedApplicant.status !== 'rejected' ? (
+                <>
+                  <button onClick={() => handleStatusChange(selectedApplicant.application_id, 'shortlisted')} className={`flex-1 py-5 rounded-[24px] font-black text-lg transition-all ${selectedApplicant.status === 'shortlisted' ? 'bg-amber-500 text-white shadow-amber-100' : 'bg-indigo-600 text-white shadow-indigo-100'}`}>
+                    {selectedApplicant.status === 'shortlisted' ? 'SHORTLISTED' : 'SHORTLIST CANDIDATE'}
+                  </button>
+                  <button onClick={() => handleRejectCandidate(selectedApplicant.application_id)} className="px-10 py-5 bg-slate-100 text-slate-600 rounded-[24px] font-black text-lg hover:bg-red-50 hover:text-red-500 transition-all">REJECT</button>
+                </>
+              ) : (
+                <div className="w-full py-5 bg-red-50 text-red-600 rounded-[24px] font-black text-center text-lg uppercase border border-red-100 tracking-widest">Application Permanently Rejected</div>
+              )}
             </div>
           </div>
         </div>
