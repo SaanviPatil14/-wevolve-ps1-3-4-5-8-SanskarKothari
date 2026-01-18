@@ -12,6 +12,7 @@ import { Candidate, Job, MatchResult, UserRole } from "./types";
 import {
   postJobToFirestore,
   fetchAllJobs,
+  fetchEmployerJobs,
   fetchCandidates,
   updateCandidateProfile,
 } from "./services/dbService";
@@ -63,9 +64,10 @@ const App: React.FC = () => {
 
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setUserRole(data.role as UserRole);
+            const role = data.role as UserRole;
+            setUserRole(role);
 
-            if (data.role === "candidate") {
+            if (role === "candidate") {
               setActiveCandidate({
                 id: currentUser.uid,
                 name: data.name || currentUser.displayName || "User",
@@ -87,12 +89,29 @@ const App: React.FC = () => {
                 avatar: data.avatar || currentUser.photoURL || "",
               });
             }
+            
+            // Load jobs based on role
+            let jobsData;
+            if (role === "employer") {
+              console.log("Loading employer jobs for:", currentUser.uid);
+              jobsData = await fetchEmployerJobs(currentUser.uid);
+            } else {
+              console.log("Loading all jobs for candidate");
+              jobsData = await fetchAllJobs();
+            }
+            
+            if (Array.isArray(jobsData) && jobsData.length > 0) {
+              setJobs(jobsData);
+              setSelectedJob(jobsData[0]);
+            }
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
         }
       } else {
         setActiveCandidate(INITIAL_CANDIDATE);
+        setJobs([]);
+        setSelectedJob(null);
       }
     });
 
@@ -100,24 +119,7 @@ const App: React.FC = () => {
   }, []);
 
   // --- 2. JOB DATA LOADING ---
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const remote = await fetchAllJobs();
-        if (mounted && Array.isArray(remote) && remote.length > 0) {
-          setJobs(remote);
-          setSelectedJob(remote[0]);
-        }
-      } catch (err) {
-        console.error("Error fetching jobs:", err);
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  // Removed - now handled in Auth & Profile Sync effect
 
   // --- 3. MATCHING ENGINE (UPDATED) ---
   const runEngine = useCallback(async () => {
