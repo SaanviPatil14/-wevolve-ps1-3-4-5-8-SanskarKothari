@@ -3,6 +3,7 @@ import { Candidate, Job } from "../types";
 export const INITIAL_CANDIDATE: Candidate = {
   id: "C001",
   name: "Alex Johnson",
+  // Ensure these match keys in your backend TAXONOMY for best results
   skills: ["Python", "FastAPI", "Docker", "React"],
   experience_years: 2,
   preferred_locations: ["Bangalore", "Remote"],

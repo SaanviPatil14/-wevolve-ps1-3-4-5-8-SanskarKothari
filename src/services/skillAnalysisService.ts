@@ -1,47 +1,55 @@
-// If backend isn't running, this mocks the response so your UI doesn't break
-export const analyzeSkills = async (data: any) => {
+import { Candidate, Job } from "../types";
+
+// Ensure this matches your Python Uvicorn port
+const API_URL = "http://127.0.0.1:8000";
+
+export const analyzeSkills = async (payload: any) => {
   try {
-    const response = await fetch("http://localhost:8000/analyze", {
+    console.log("Sending Analysis Request for:", payload.target_role.title); // Debug log
+
+    const response = await fetch(`${API_URL}/analyze`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error("Network response was not ok");
-    return await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.warn("Backend unavailable, using mock data");
-    return MOCK_RESPONSE; // Use the mock object from your prompt here for fallback
+    console.error("Skill Analysis Service Error:", error);
+    // Only return mock data if the backend is dead
+    alert(
+      "⚠️ Backend connection failed! Showing DEMO data. Check your Python terminal."
+    );
+    return MOCK_GAP_RESPONSE;
   }
 };
 
-const MOCK_RESPONSE = {
+// Fallback data only used if Python is offline
+const MOCK_GAP_RESPONSE = {
   analysis: {
-    skill_gap_percentage: 70,
-    readiness_score: 30,
-    estimated_learning_time_months: 8,
-    missing_skills: ["React", "Docker", "Kubernetes", "PostgreSQL"],
-    matching_skills: ["Python", "FastAPI"],
+    skill_gap_percentage: 45,
+    readiness_score: 55,
+    estimated_learning_time_months: 3,
+    missing_skills: ["Backend Connection Failed", "Check Terminal"],
+    matching_skills: ["React", "CSS"],
   },
   learning_roadmap: [
     {
       phase: 1,
-      duration_months: 2,
-      focus: "Frontend Fundamentals",
-      skills_to_learn: ["React"],
+      duration_months: 1,
+      focus: "Connection Troubleshooting",
+      skills_to_learn: ["Start Backend", "Check Port 8000"],
       priority: "High",
-    },
-    {
-      phase: 2,
-      duration_months: 3,
-      focus: "DevOps & Cloud",
-      skills_to_learn: ["Docker", "Kubernetes"],
-      priority: "Medium",
+      reasoning: "The frontend cannot talk to Python.",
     },
   ],
-  radar_data: [
-    { subject: "Frontend", A: 0, B: 100, fullMark: 100 },
-    { subject: "Backend", A: 200, B: 200, fullMark: 200 },
-    { subject: "DevOps", A: 0, B: 300, fullMark: 300 },
-    { subject: "Database", A: 50, B: 150, fullMark: 150 },
-  ],
+  radar_data: [],
+  salary_growth: [],
 };

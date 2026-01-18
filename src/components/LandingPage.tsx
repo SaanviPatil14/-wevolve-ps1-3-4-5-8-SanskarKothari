@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Github, Linkedin } from "lucide-react";
 import gsap from "gsap";
 
 interface LandingPageProps {
@@ -10,41 +10,56 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   const headerRef = useRef(null);
   const subtextRef = useRef(null);
   const buttonRef = useRef(null);
+  const footerRef = useRef(null);
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
-      // Heading slides from LEFT
-      gsap.from(headerRef.current, {
-        x: -150,
+      const tl = gsap.timeline();
+
+      // --- HERO ANIMATIONS ---
+      tl.from(headerRef.current, {
+        x: -100,
         opacity: 0,
         duration: 1.2,
         ease: "power4.out",
-      });
+      })
+        .from(
+          subtextRef.current,
+          {
+            x: 100,
+            opacity: 0,
+            duration: 1.2,
+            ease: "power4.out",
+          },
+          "-=1"
+        )
+        .from(
+          buttonRef.current,
+          {
+            scale: 0.8,
+            opacity: 0,
+            duration: 1,
+            ease: "back.out(1.7)",
+          },
+          "-=0.8"
+        );
 
-      // Subtext slides from RIGHT
-      gsap.from(subtextRef.current, {
-        x: 150,
-        opacity: 0,
-        duration: 1.2,
-        delay: 0.3,
-        ease: "power4.out",
-      });
-
-      // Button zooms in
-      gsap.from(buttonRef.current, {
-        scale: 0.8,
+      // --- FOOTER ANIMATION (Slides up on load) ---
+      gsap.from(footerRef.current, {
+        y: 100, // Start below screen
         opacity: 0,
         duration: 1,
-        delay: 0.6,
-        ease: "back.out(1.7)",
+        delay: 0.5, // Wait for hero to start
+        ease: "power3.out",
       });
     });
 
-    return () => ctx.revert(); // Cleanup
+    return () => ctx.revert();
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FDFDFF] overflow-x-hidden selection:bg-indigo-100 selection:text-indigo-900">
+    <div className="min-h-screen bg-[#FDFDFF] selection:bg-indigo-100 selection:text-indigo-900 font-sans relative">
+      {/* --- NAVBAR --- */}
       <nav className="fixed top-0 inset-x-0 h-20 bg-white/70 backdrop-blur-xl border-b border-slate-200/50 z-[100]">
         <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2 group cursor-pointer">
@@ -55,7 +70,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
               WEVOLVE
             </span>
           </div>
-          
+
           <div className="flex gap-4 items-center">
             <button
               onClick={() => onStart("login")}
@@ -73,14 +88,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         </div>
       </nav>
 
-      <header className="relative pt-44 pb-32 px-6">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[800px] bg-gradient-to-b from-indigo-50/50 via-white to-white pointer-events-none -z-10 overflow-hidden">
+      {/* --- HERO SECTION --- */}
+      {/* Added pb-32 to ensure content isn't hidden behind the fixed footer */}
+      <header className="relative pt-32 pb-32 px-6 min-h-screen flex flex-col justify-center items-center">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-indigo-50/50 via-white to-white pointer-events-none -z-10 overflow-hidden">
           <div className="absolute top-20 left-1/4 w-96 h-96 bg-indigo-200 rounded-full blur-[120px] opacity-30 animate-pulse"></div>
-          <div className="absolute top-40 right-1/4 w-96 h-96 bg-teal-200 rounded-full blur-[120px] opacity-20 animate-pulse delay-700"></div>
+          <div className="absolute bottom-40 right-1/4 w-96 h-96 bg-teal-200 rounded-full blur-[120px] opacity-20 animate-pulse delay-700"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 
+        <div className="max-w-7xl mx-auto text-center z-10">
+          <h1
             ref={headerRef}
             className="text-6xl md:text-[100px] font-black text-slate-900 leading-[0.85] tracking-tight mb-8"
           >
@@ -89,12 +106,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
               CAREER.
             </span>
           </h1>
-          
-          <p 
+
+          <p
             ref={subtextRef}
             className="text-xl md:text-2xl text-slate-500 max-w-2xl mx-auto mb-12 font-medium leading-relaxed"
           >
-            The next-generation matching engine designed to connect elite talent 
+            The next-generation matching engine designed to connect elite talent
             with high-performance teams through deep compatibility analysis.
           </p>
 
@@ -108,6 +125,54 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
           </div>
         </div>
       </header>
+
+      {/* --- FIXED BOTTOM FOOTER --- */}
+      <footer
+        ref={footerRef}
+        className="fixed bottom-0 left-0 w-full bg-slate-950 border-t border-slate-900 z-50"
+      >
+        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+          {/* Copyright */}
+          <p className="text-slate-500 text-xs font-medium">
+            © 2024 Wevolve. All rights reserved.
+          </p>
+
+          <div className="flex items-center gap-6">
+            {/* Text Links */}
+            <div className="flex gap-6 text-xs font-bold text-slate-400">
+              <button className="hover:text-white transition-colors">
+                About
+              </button>
+              <button className="hover:text-white transition-colors">
+                Contact
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-3 bg-slate-800 hidden md:block"></div>
+
+            {/* Social Icons */}
+            <div className="flex gap-3">
+              <a
+                href="https://github.com"
+                target="_blank"
+                rel="noreferrer"
+                className="w-7 h-7 rounded-full bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-white hover:text-black transition-all duration-300"
+              >
+                <Github size={14} />
+              </a>
+              <a
+                href="https://linkedin.com"
+                target="_blank"
+                rel="noreferrer"
+                className="w-7 h-7 rounded-full bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-[#0077b5] hover:text-white transition-all duration-300"
+              >
+                <Linkedin size={14} />
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
