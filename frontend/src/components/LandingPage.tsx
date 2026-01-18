@@ -99,7 +99,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         <div className="max-w-7xl mx-auto text-center z-10">
           <h1
             ref={headerRef}
-            className="text-5xl sm:text-6xl md:text-7xl font-black text-slate-900 leading-[0.85] tracking-tight mb-6"
+            className="text-6xl md:text-[100px] font-black text-slate-900 leading-[0.85] tracking-tight mb-8"
           >
             EVOLVE YOUR <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-400">
@@ -109,7 +109,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
           <p
             ref={subtextRef}
-            className="text-sm sm:text-base md:text-lg text-slate-500 max-w-2xl mx-auto mb-8 font-medium leading-relaxed"
+            className="text-xl md:text-2xl text-slate-500 max-w-2xl mx-auto mb-12 font-medium leading-relaxed"
           >
             The next-generation matching engine designed to connect elite talent
             with high-performance teams through deep compatibility analysis.
