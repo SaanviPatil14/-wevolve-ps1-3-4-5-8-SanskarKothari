@@ -20,8 +20,9 @@ import {
   Building2,
   Layers,
   Clock,
+  Calendar as CalendarIcon,
 } from "lucide-react";
-import { applyForJob, hasApplied } from "../../services/dbService";
+import { applyForJob, hasApplied, getApplicationStatus } from "../../services/dbService";
 import { MatchResult, Candidate } from "../../types";
 
 interface CandidateDashboardProps {
@@ -40,6 +41,8 @@ const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
   const navigate = useNavigate();
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null); // NEW: Track full status
+  const [interviewData, setInterviewData] = useState<any>(null); // NEW: Track interview details
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
 
   // --- CHATBOT STATE ---
@@ -122,28 +125,24 @@ const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
 
   // --- APPLICATION LOGIC ---
   const handleToggleApply = async () => {
-    if (!selectedMatch) return;
+    if (!selectedMatch || applied) return; // Prevent action if already applied
     const jobId = selectedMatch.job_id || selectedMatch.job_details?.job_id;
     if (!jobId) return;
 
     try {
       setApplying(true);
-      if (applied) {
-        setApplied(false);
-        setAppliedJobIds((prev) => {
-          const next = new Set(prev);
-          next.delete(jobId);
-          return next;
-        });
-      } else {
-        const res = await applyForJob(jobId, activeCandidate);
-        if (res && (res.success || res.alreadyApplied)) {
-          setApplied(true);
-          setAppliedJobIds((prev) => new Set(prev).add(jobId));
-        }
+      const res = await applyForJob(jobId, activeCandidate);
+      if (res && res.success) {
+        setApplied(true);
+        setApplicationStatus('pending');
+        setAppliedJobIds((prev) => new Set(prev).add(jobId));
+      } else if (res?.alreadyApplied) {
+        setApplied(true);
+        setApplicationStatus('pending');
+        setAppliedJobIds((prev) => new Set(prev).add(jobId));
       }
     } catch (err) {
-      console.error("Toggle error", err);
+      console.error("Apply error", err);
     } finally {
       setApplying(false);
     }
@@ -151,8 +150,41 @@ const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
 
   useEffect(() => {
     const jobId = selectedMatch?.job_id || selectedMatch?.job_details?.job_id;
-    if (jobId) setApplied(appliedJobIds.has(jobId));
-  }, [selectedMatch, appliedJobIds]);
+    if (jobId) {
+      setApplied(appliedJobIds.has(jobId));
+      
+      // Fetch application status from database
+      const fetchStatus = async () => {
+        const candidateId = activeCandidate.id;
+        if (!candidateId) return;
+        
+        const appStatus = await getApplicationStatus(jobId, candidateId);
+        if (appStatus) {
+          setApplied(true);
+          setApplicationStatus(appStatus.status);
+          setAppliedJobIds((prev) => new Set(prev).add(jobId));
+          
+          // Extract interview details if available
+          if (appStatus.interview_scheduled && appStatus.interview_date) {
+            setInterviewData({
+              date: appStatus.interview_date,
+              time: appStatus.interview_time,
+              location: appStatus.interview_location,
+              type: appStatus.interview_type
+            });
+          } else {
+            setInterviewData(null);
+          }
+        } else {
+          setApplied(false);
+          setApplicationStatus(null);
+          setInterviewData(null);
+        }
+      };
+      
+      fetchStatus();
+    }
+  }, [selectedMatch, activeCandidate]);
 
   return (
     <div className="grid lg:grid-cols-12 gap-8 font-sans">
@@ -380,16 +412,81 @@ const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Apply Button - BLUE */}
-                <div className="relative z-10 pt-4">
+                {/* Apply Button & Status - BLUE */}
+                <div className="relative z-10 pt-4 space-y-3">
+                  {applied && applicationStatus && (
+                    <div className={`p-4 rounded-[24px] border-2 flex items-center justify-between
+                      ${applicationStatus === 'shortlisted' 
+                        ? 'bg-amber-50 border-amber-200 text-amber-700' 
+                        : applicationStatus === 'rejected'
+                        ? 'bg-red-50 border-red-200 text-red-700'
+                        : applicationStatus === 'interview_scheduled'
+                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      }
+                    `}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full
+                          ${applicationStatus === 'shortlisted' 
+                            ? 'bg-amber-500' 
+                            : applicationStatus === 'rejected'
+                            ? 'bg-red-500'
+                            : applicationStatus === 'interview_scheduled'
+                            ? 'bg-blue-500'
+                            : 'bg-emerald-500'
+                          }
+                        `}></div>
+                        <span className="font-black uppercase text-sm tracking-wide">
+                          {applicationStatus === 'shortlisted' ? '⭐ Shortlisted!' : applicationStatus === 'rejected' ? '❌ Rejected' : applicationStatus === 'interview_scheduled' ? '📅 Interview Scheduled' : '✓ Application Pending'}
+                        </span>
+                      </div>
+                      {applicationStatus === 'shortlisted' && (
+                        <span className="text-xs font-bold">Great progress!</span>
+                      )}
+                      {applicationStatus === 'interview_scheduled' && (
+                        <span className="text-xs font-bold">Check details below</span>
+                      )}
+                    </div>
+                  )}
+
+                  {interviewData && applicationStatus === 'interview_scheduled' && (
+                    <div className="p-5 bg-blue-50 rounded-[24px] border-2 border-blue-200 space-y-3">
+                      <div className="text-sm font-black text-blue-900 uppercase tracking-wide mb-4">Interview Details</div>
+                      
+                      <div className="flex items-start gap-3">
+                        <CalendarIcon size={18} className="text-blue-600 mt-1 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-blue-700 uppercase">Date & Time</div>
+                          <div className="text-sm font-black text-blue-900">{interviewData.date} at {interviewData.time}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <Briefcase size={18} className="text-blue-600 mt-1 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-blue-700 uppercase">Interview Type</div>
+                          <div className="text-sm font-black text-blue-900 capitalize">{interviewData.type === 'video' ? 'Video Call' : interviewData.type === 'phone' ? 'Phone Call' : 'In-Person'}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <MapPin size={18} className="text-blue-600 mt-1 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="text-xs font-bold text-blue-700 uppercase">Location/Link</div>
+                          <div className="text-sm font-black text-blue-900 break-all">{interviewData.location}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <button
                     onClick={handleToggleApply}
-                    disabled={applying}
-                    className={`w-full py-6 rounded-[28px] font-black text-xl shadow-xl hover:shadow-2xl hover:shadow-blue-200 transition-all transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-3 relative overflow-hidden group/btn
+                    disabled={applying || applied}
+                    className={`w-full py-6 rounded-[28px] font-black text-xl shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-3 relative overflow-hidden group/btn disabled:cursor-not-allowed
                     ${
                       applied
-                        ? "bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        ? "bg-slate-100 text-slate-400 border border-slate-200"
+                        : "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200"
                     }`}
                   >
                     {!applied && (
@@ -401,7 +498,7 @@ const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
                     ) : applied ? (
                       <>
                         {" "}
-                        <Undo2 size={20} /> Withdraw Application{" "}
+                        <CheckCircle size={20} /> Application Submitted{" "}
                       </>
                     ) : (
                       <>

@@ -58,7 +58,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#FDFDFF] selection:bg-indigo-100 selection:text-indigo-900 font-sans relative">
+    <div className="h-screen overflow-hidden bg-[#FDFDFF] selection:bg-indigo-100 selection:text-indigo-900 font-sans relative flex flex-col">
       {/* --- NAVBAR --- */}
       <nav className="fixed top-0 inset-x-0 h-20 bg-white/70 backdrop-blur-xl border-b border-slate-200/50 z-[100]">
         <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
@@ -90,7 +90,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
       {/* --- HERO SECTION --- */}
       {/* Added pb-32 to ensure content isn't hidden behind the fixed footer */}
-      <header className="relative pt-32 pb-32 px-6 min-h-screen flex flex-col justify-center items-center">
+      <header className="flex-1 relative pt-20 px-6 flex flex-col justify-center items-center overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-indigo-50/50 via-white to-white pointer-events-none -z-10 overflow-hidden">
           <div className="absolute top-20 left-1/4 w-96 h-96 bg-indigo-200 rounded-full blur-[120px] opacity-30 animate-pulse"></div>
           <div className="absolute bottom-40 right-1/4 w-96 h-96 bg-teal-200 rounded-full blur-[120px] opacity-20 animate-pulse delay-700"></div>
@@ -99,7 +99,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         <div className="max-w-7xl mx-auto text-center z-10">
           <h1
             ref={headerRef}
-            className="text-6xl md:text-[100px] font-black text-slate-900 leading-[0.85] tracking-tight mb-8"
+            className="text-5xl sm:text-6xl md:text-7xl font-black text-slate-900 leading-[0.85] tracking-tight mb-6"
           >
             EVOLVE YOUR <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-400">
@@ -109,7 +109,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
 
           <p
             ref={subtextRef}
-            className="text-xl md:text-2xl text-slate-500 max-w-2xl mx-auto mb-12 font-medium leading-relaxed"
+            className="text-sm sm:text-base md:text-lg text-slate-500 max-w-2xl mx-auto mb-8 font-medium leading-relaxed"
           >
             The next-generation matching engine designed to connect elite talent
             with high-performance teams through deep compatibility analysis.
