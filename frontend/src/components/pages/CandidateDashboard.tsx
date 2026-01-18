@@ -367,6 +367,79 @@ const CandidateDashboard: React.FC<CandidateDashboardProps> = ({
                   />
                 </div>
 
+                {/* MATCH BREAKDOWN - AI SCORING DETAILS */}
+                {selectedMatch.breakdown && (
+                  <div className="relative z-10 grid md:grid-cols-5 gap-4 p-6 bg-gradient-to-r from-slate-50 to-slate-100 rounded-[32px] border border-slate-200">
+                    <div className="text-center">
+                      <div className="text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Skills</div>
+                      <div className="text-3xl font-black text-indigo-600">{Math.round(selectedMatch.breakdown.skill_match ?? 0)}<span className="text-lg">%</span></div>
+                      <div className="text-[10px] font-medium text-slate-500 mt-1">(Weight: 40%)</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Location</div>
+                      <div className="text-3xl font-black text-violet-600">{Math.round(selectedMatch.breakdown.location_match ?? 0)}<span className="text-lg">%</span></div>
+                      <div className="text-[10px] font-medium text-slate-500 mt-1">(Weight: 20%)</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Experience</div>
+                      <div className="text-3xl font-black text-amber-600">{Math.round(selectedMatch.breakdown.experience_match ?? 0)}<span className="text-lg">%</span></div>
+                      <div className="text-[10px] font-medium text-slate-500 mt-1">(Weight: 15%)</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Salary</div>
+                      <div className="text-3xl font-black text-emerald-600">{Math.round(selectedMatch.breakdown.salary_match ?? 0)}<span className="text-lg">%</span></div>
+                      <div className="text-[10px] font-medium text-slate-500 mt-1">(Weight: 15%)</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Role</div>
+                      <div className="text-3xl font-black text-rose-600">{Math.round(selectedMatch.breakdown.role_match ?? 0)}<span className="text-lg">%</span></div>
+                      <div className="text-[10px] font-medium text-slate-500 mt-1">(Weight: 10%)</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* MATCHING & MISSING SKILLS */}
+                {(selectedMatch.matching_skills && selectedMatch.matching_skills.length > 0) || (selectedMatch.missing_skills && selectedMatch.missing_skills.length > 0) ? (
+                  <div className="relative z-10 grid md:grid-cols-2 gap-6">
+                    {selectedMatch.matching_skills && selectedMatch.matching_skills.length > 0 && (
+                      <div className="bg-emerald-50 rounded-[24px] p-6 border-2 border-emerald-200">
+                        <h4 className="text-sm font-black text-emerald-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                          <CheckCircle size={16} className="text-emerald-600" />
+                          Your Matching Skills
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedMatch.matching_skills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-300"
+                            >
+                              ✓ {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedMatch.missing_skills && selectedMatch.missing_skills.length > 0 && (
+                      <div className="bg-amber-50 rounded-[24px] p-6 border-2 border-amber-200">
+                        <h4 className="text-sm font-black text-amber-900 uppercase tracking-wide mb-4 flex items-center gap-2">
+                          <Zap size={16} className="text-amber-600" />
+                          Skills to Develop
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedMatch.missing_skills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold border border-amber-300"
+                            >
+                              ⚡ {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
                 {/* Job Description & Skills Section */}
                 <div className="grid md:grid-cols-3 gap-6 relative z-10">
                   {/* Left: Description */}
