@@ -21,6 +21,10 @@ from schemas import (
     StatusHistoryResponse,
     ApplicationStats, JobApplicationStats, CandidateApplicationStats
 )
+from matching_engine import (
+    JobMatchingEngine, MatchingRequest, MatchingResponse,
+    CandidateMatchProfile, JobPostingForMatch
+)
 
 app = FastAPI(title="Job Application Lifecycle Management", version="1.0.0")
 
@@ -687,3 +691,92 @@ async def get_candidate_application_stats(
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "Application Lifecycle Management"}
+
+
+# ============================================================================
+# --- MULTI-FACTOR JOB MATCHING ENGINE ---
+# ============================================================================
+
+@app.post("/api/match/candidate-to-jobs", response_model=MatchingResponse)
+async def match_candidate_to_jobs(request: MatchingRequest):
+    """
+    Multi-factor job matching endpoint
+    
+    Matches a candidate profile against multiple job postings using weighted scoring:
+    - Skill Match: 40%
+    - Location Match: 20%
+    - Salary Match: 15%
+    - Experience Match: 15%
+    - Role Match: 10%
+    
+    Args:
+        request: MatchingRequest containing candidate profile and job list
+    
+    Returns:
+        MatchingResponse with ranked matches and detailed breakdowns
+    
+    Example:
+        POST /api/match/candidate-to-jobs
+        {
+          "candidate": {
+            "skills": ["Python", "FastAPI", "Docker"],
+            "experience_years": 2,
+            "preferred_locations": ["Bangalore"],
+            "preferred_roles": ["Backend Developer"],
+            "expected_salary": 850000,
+            "education": {
+              "degree": "B.Tech",
+              "field": "CS",
+              "cgpa": 8.5
+            }
+          },
+          "jobs": [
+            {
+              "job_id": "J001",
+              "title": "Backend Developer",
+              "required_skills": ["Python", "FastAPI"],
+              "experience_required": "1-3 years",
+              "location": "Bangalore",
+              "salary_range": [600000, 1200000],
+              "company": "TechCorp"
+            }
+          ]
+        }
+    """
+    try:
+        # Validate input
+        if not request.candidate.skills:
+            raise HTTPException(status_code=400, detail="Candidate must have at least one skill")
+        
+        if not request.jobs:
+            raise HTTPException(status_code=400, detail="Must provide at least one job")
+        
+        # Initialize matching engine
+        engine = JobMatchingEngine()
+        
+        # Perform matching
+        response = engine.match_candidate_to_jobs(request.candidate, request.jobs)
+        
+        return response
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Validation error: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Matching error: {str(e)}")
+
+
+@app.get("/api/match/engine/weights")
+async def get_matching_weights():
+    """Get the weights used in the matching algorithm"""
+    engine = JobMatchingEngine()
+    return {
+        "weights": engine.WEIGHTS,
+        "total": sum(engine.WEIGHTS.values()),
+        "description": {
+            "skill": "Technical skill alignment (40%)",
+            "location": "Location preference match (20%)",
+            "salary": "Salary expectation alignment (15%)",
+            "experience": "Experience level match (15%)",
+            "role": "Job title preference match (10%)"
+        }
+    }
