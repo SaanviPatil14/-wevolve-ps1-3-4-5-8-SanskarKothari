@@ -89,6 +89,23 @@ export const fetchAllJobs = async () => {
 };
 
 /**
+ * NEW: Fetch only jobs created by a specific employer
+ */
+export const fetchEmployerJobs = async (employerId) => {
+  try {
+    const jobsQuery = query(collection(db, "jobs"), where("employer_id", "==", employerId));
+    const querySnapshot = await getDocs(jobsQuery);
+    return querySnapshot.docs.map(doc => ({
+      ...doc.data(),
+      job_id: doc.id
+    }));
+  } catch (error) {
+    console.error("Error fetching employer jobs:", error);
+    return [];
+  }
+};
+
+/**
  * NEW: Delete a complete Job Vacancy
  * Also deletes all applications associated with this job
  */
@@ -172,12 +189,14 @@ export const hasApplied = async (jobId, candidateId) => {
 
 export const fetchEmployerApplications = async (employerId) => {
   try {
+    // Fetch all jobs created by this employer
     const jobsQuery = query(collection(db, "jobs"), where("employer_id", "==", employerId));
     const jobsSnapshot = await getDocs(jobsQuery);
     const jobIds = jobsSnapshot.docs.map(d => d.id);
     
     if (jobIds.length === 0) return [];
 
+    // Fetch only applications for this employer's jobs
     const appsQuery = query(collection(db, "applications"), where("job_id", "in", jobIds));
     const appsSnapshot = await getDocs(appsQuery);
 
@@ -245,5 +264,91 @@ export const updateApplicationStatus = async (applicationId, newStatus) => {
   } catch (error) {
     console.error("Error updating status:", error);
     throw error;
+  }
+};
+
+/**
+ * NEW: Get the application status for a candidate's specific job application
+ */
+export const getApplicationStatus = async (jobId, candidateId) => {
+  try {
+    if (!jobId || !candidateId) return null;
+    const q = query(
+      collection(db, 'applications'),
+      where('job_id', '==', jobId),
+      where('candidate_id', '==', candidateId)
+    );
+    const snap = await getDocs(q);
+    
+    if (snap.empty) return null;
+    
+    const appData = snap.docs[0].data();
+    return {
+      application_id: snap.docs[0].id,
+      status: appData.status,
+      applied_at: appData.applied_at,
+      interview_scheduled: appData.interview_scheduled || null,
+      interview_date: appData.interview_date || null,
+      interview_time: appData.interview_time || null,
+      interview_location: appData.interview_location || null,
+      ...appData
+    };
+  } catch (err) {
+    console.error('Error fetching application status:', err);
+    return null;
+  }
+};
+
+/**
+ * Schedule an interview for a candidate
+ */
+export const scheduleInterview = async (applicationId, interviewData) => {
+  try {
+    const appRef = doc(db, 'applications', applicationId);
+    await updateDoc(appRef, {
+      status: 'interview_scheduled',
+      interview_scheduled: true,
+      interview_date: interviewData.date,
+      interview_time: interviewData.time,
+      interview_location: interviewData.location,
+      interview_type: interviewData.type || 'video', // video, in-person, phone
+      interview_notes: interviewData.notes || '',
+      updated_at: new Date().toISOString()
+    });
+    return true;
+  } catch (err) {
+    console.error('Error scheduling interview:', err);
+    return false;
+  }
+};
+
+/**
+ * Get interview details for a candidate
+ */
+export const getInterviewDetails = async (jobId, candidateId) => {
+  try {
+    if (!jobId || !candidateId) return null;
+    const q = query(
+      collection(db, 'applications'),
+      where('job_id', '==', jobId),
+      where('candidate_id', '==', candidateId)
+    );
+    const snap = await getDocs(q);
+    
+    if (snap.empty) return null;
+    
+    const appData = snap.docs[0].data();
+    if (!appData.interview_scheduled) return null;
+    
+    return {
+      interview_date: appData.interview_date,
+      interview_time: appData.interview_time,
+      interview_location: appData.interview_location,
+      interview_type: appData.interview_type,
+      interview_notes: appData.interview_notes
+    };
+  } catch (err) {
+    console.error('Error fetching interview details:', err);
+    return null;
   }
 };

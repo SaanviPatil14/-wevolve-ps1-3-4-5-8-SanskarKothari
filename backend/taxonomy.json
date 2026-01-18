@@ -1,0 +1,14 @@
+{
+    "skills": {
+      "Python": { "category": "Backend", "difficulty": 2, "time_months": 2 },
+      "FastAPI": { "category": "Backend", "difficulty": 2, "time_months": 1, "prerequisites": ["Python"] },
+      "React": { "category": "Frontend", "difficulty": 3, "time_months": 2, "prerequisites": ["JavaScript"] },
+      "Docker": { "category": "DevOps", "difficulty": 3, "time_months": 1 },
+      "Kubernetes": { "category": "DevOps", "difficulty": 5, "time_months": 3, "prerequisites": ["Docker"] },
+      "PostgreSQL": { "category": "Database", "difficulty": 3, "time_months": 1.5 },
+      "Redis": { "category": "Database", "difficulty": 3, "time_months": 1 },
+      "AWS": { "category": "DevOps", "difficulty": 4, "time_months": 3 },
+      "CI/CD": { "category": "DevOps", "difficulty": 3, "time_months": 1 },
+      "System Design": { "category": "Backend", "difficulty": 5, "time_months": 2 }
+    }
+  }

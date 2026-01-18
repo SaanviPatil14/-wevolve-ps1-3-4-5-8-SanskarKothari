@@ -19,7 +19,8 @@ import JobDescriptionGenerator from "./JobDescriptionGenerator";
 import {
   fetchEmployerApplications,
   deleteJobFromFirestore,
-  updateApplicationStatus, 
+  updateApplicationStatus,
+  scheduleInterview
 } from "../../services/dbService";
 import { auth } from "../../firebase";
 
@@ -57,15 +58,29 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
   const [showGenerator, setShowGenerator] = useState(false);
   const [applications, setApplications] = useState<any[]>([]);
   const [selectedApplicant, setSelectedApplicant] = useState<any | null>(null);
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [interviewData, setInterviewData] = useState({
+    date: '',
+    time: '',
+    location: '',
+    type: 'video',
+    notes: ''
+  });
+  const [schedulingApplicantId, setSchedulingApplicantId] = useState<string | null>(null);
 
   // Fetch employer applications
   React.useEffect(() => {
     const uid = auth.currentUser?.uid;
-    if (!uid) return;
+    if (!uid) {
+      console.log("No uid found for employer applications fetch");
+      return;
+    }
     let mounted = true;
+    console.log("Fetching applications for employer:", uid);
     fetchEmployerApplications(uid)
       .then((res) => {
         if (!mounted) return;
+        console.log("Applications loaded:", res);
         setApplications(res || []);
       })
       .catch((err) => console.error("Error loading applications", err));
@@ -104,6 +119,56 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
       }
     } catch (err) {
       alert("Failed to reject candidate.");
+    }
+  };
+
+  const handleScheduleInterview = async (appId: string) => {
+    setSchedulingApplicantId(appId);
+    setShowInterviewModal(true);
+  };
+
+  const handleSubmitInterview = async () => {
+    if (!schedulingApplicantId || !interviewData.date || !interviewData.time || !interviewData.location) {
+      alert("Please fill in all interview details");
+      return;
+    }
+    
+    try {
+      const success = await scheduleInterview(schedulingApplicantId, interviewData);
+      if (success) {
+        // Update application status in UI
+        setApplications((prev) =>
+          prev.map((a) =>
+            a.application_id === schedulingApplicantId 
+              ? { 
+                  ...a, 
+                  status: 'interview_scheduled',
+                  interview_date: interviewData.date,
+                  interview_time: interviewData.time,
+                  interview_location: interviewData.location,
+                  interview_type: interviewData.type
+                } 
+              : a
+          )
+        );
+        if (selectedApplicant && selectedApplicant.application_id === schedulingApplicantId) {
+          setSelectedApplicant({ 
+            ...selectedApplicant, 
+            status: 'interview_scheduled',
+            interview_date: interviewData.date,
+            interview_time: interviewData.time,
+            interview_location: interviewData.location,
+            interview_type: interviewData.type
+          });
+        }
+        setShowInterviewModal(false);
+        setInterviewData({ date: '', time: '', location: '', type: 'video', notes: '' });
+        setSchedulingApplicantId(null);
+        alert("Interview scheduled successfully!");
+      }
+    } catch (err) {
+      console.error("Failed to schedule interview:", err);
+      alert("Failed to schedule interview.");
     }
   };
 
@@ -186,19 +251,29 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
           <div className="space-y-4">
             {selectedJob ? (
               applications.filter((a) => a.job_id === selectedJob.job_id).map((app) => (
-                <div key={app.application_id} className={`p-6 rounded-[28px] border flex items-center justify-between transition-all group ${app.status === 'rejected' ? 'bg-slate-50 opacity-60 border-slate-200' : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-xl'}`}>
+                <div key={app.application_id} className={`p-6 rounded-[28px] border flex items-center justify-between transition-all group ${
+                  app.status === 'rejected' 
+                    ? 'bg-red-50 border-red-200 hover:bg-red-100' 
+                    : app.status === 'shortlisted'
+                    ? 'bg-emerald-50/50 border-emerald-100 hover:bg-white hover:shadow-xl'
+                    : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-xl'
+                }`}>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <div className="font-black text-slate-900 text-lg">{app.candidate_name || "Applicant"}</div>
                       {app.status === 'reviewed' && <span className="bg-emerald-100 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter">Reviewed</span>}
                       {app.status === 'shortlisted' && <span className="bg-amber-100 text-amber-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter flex items-center gap-0.5"><Star size={8} fill="currentColor" /> Shortlisted</span>}
+                      {app.status === 'interview_scheduled' && <span className="bg-blue-100 text-blue-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter flex items-center gap-0.5"><Calendar size={8} /> Interview Scheduled</span>}
                       {app.status === 'rejected' && <span className="bg-red-100 text-red-600 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-tighter flex items-center gap-0.5"><CircleSlash size={8} /> Rejected</span>}
                     </div>
                     <div className="text-xs text-slate-400 font-bold uppercase">{new Date(app.applied_at).toLocaleString()}</div>
                   </div>
                   <div className="flex items-center gap-3">
                     <button onClick={() => setSelectedApplicant({ ...app.candidate_profile, application_id: app.application_id, status: app.status })} className="px-6 py-2 bg-white text-indigo-600 rounded-xl font-black text-xs border border-slate-100 hover:bg-indigo-50">VIEW PROFILE</button>
-                    {app.status !== 'rejected' && (
+                    {app.status === 'shortlisted' && (
+                      <button onClick={() => handleScheduleInterview(app.application_id)} className="px-6 py-2 bg-blue-100 text-blue-600 rounded-xl font-black text-xs border border-blue-200 hover:bg-blue-200 transition-all flex items-center gap-1"><Calendar size={14} /> Schedule</button>
+                    )}
+                    {app.status !== 'rejected' && app.status !== 'interview_scheduled' && (
                       <button onClick={() => handleRejectCandidate(app.application_id)} className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><UserMinus size={20} /></button>
                     )}
                   </div>
@@ -313,16 +388,108 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
               <CandidateProfile candidate={selectedApplicant} />
             </div>
             <div className="p-8 bg-white border-t border-slate-50 flex gap-4">
-              {selectedApplicant.status !== 'rejected' ? (
+              {selectedApplicant.status === 'rejected' ? (
+                <div className="w-full py-5 bg-red-50 text-red-600 rounded-[24px] font-black text-center text-lg uppercase border border-red-100 tracking-widest">Application Permanently Rejected</div>
+              ) : selectedApplicant.status === 'interview_scheduled' ? (
+                <div className="w-full py-5 bg-blue-50 text-blue-600 rounded-[24px] font-black text-center text-lg uppercase border border-blue-100 tracking-widest">Interview Already Scheduled</div>
+              ) : (
                 <>
                   <button onClick={() => handleStatusChange(selectedApplicant.application_id, 'shortlisted')} className={`flex-1 py-5 rounded-[24px] font-black text-lg transition-all ${selectedApplicant.status === 'shortlisted' ? 'bg-amber-500 text-white shadow-amber-100' : 'bg-indigo-600 text-white shadow-indigo-100'}`}>
                     {selectedApplicant.status === 'shortlisted' ? 'SHORTLISTED' : 'SHORTLIST CANDIDATE'}
                   </button>
                   <button onClick={() => handleRejectCandidate(selectedApplicant.application_id)} className="px-10 py-5 bg-slate-100 text-slate-600 rounded-[24px] font-black text-lg hover:bg-red-50 hover:text-red-500 transition-all">REJECT</button>
                 </>
-              ) : (
-                <div className="w-full py-5 bg-red-50 text-red-600 rounded-[24px] font-black text-center text-lg uppercase border border-red-100 tracking-widest">Application Permanently Rejected</div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Interview Scheduling Modal */}
+      {showInterviewModal && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowInterviewModal(false)}></div>
+          <div className="bg-white w-full max-w-md rounded-[32px] shadow-2xl relative z-10 p-10 border border-slate-100">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+                <Calendar size={24} />
+              </div>
+              <div>
+                <h2 className="font-black text-xl text-slate-900">Schedule Interview</h2>
+                <p className="text-xs text-slate-400 font-bold uppercase">Plan the next step</p>
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Interview Date</label>
+                <input 
+                  type="date" 
+                  value={interviewData.date}
+                  onChange={(e) => setInterviewData({...interviewData, date: e.target.value})}
+                  className="w-full px-5 py-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 focus:border-blue-300"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Interview Time</label>
+                <input 
+                  type="time" 
+                  value={interviewData.time}
+                  onChange={(e) => setInterviewData({...interviewData, time: e.target.value})}
+                  className="w-full px-5 py-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 focus:border-blue-300"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Interview Type</label>
+                <select 
+                  value={interviewData.type}
+                  onChange={(e) => setInterviewData({...interviewData, type: e.target.value})}
+                  className="w-full px-5 py-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 focus:border-blue-300"
+                >
+                  <option value="video">Video Call</option>
+                  <option value="phone">Phone Call</option>
+                  <option value="in-person">In-Person</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Location / Link</label>
+                <input 
+                  type="text" 
+                  placeholder="Zoom link, office address, etc."
+                  value={interviewData.location}
+                  onChange={(e) => setInterviewData({...interviewData, location: e.target.value})}
+                  className="w-full px-5 py-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 focus:border-blue-300"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Additional Notes</label>
+                <textarea 
+                  placeholder="Any instructions for the candidate..."
+                  value={interviewData.notes}
+                  onChange={(e) => setInterviewData({...interviewData, notes: e.target.value})}
+                  rows={3}
+                  className="w-full px-5 py-4 bg-slate-50 rounded-2xl outline-none font-bold border border-slate-100 focus:border-blue-300 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => setShowInterviewModal(false)}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-sm hover:bg-slate-200 transition-all uppercase"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSubmitInterview}
+                  className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all uppercase shadow-lg shadow-blue-100"
+                >
+                  Schedule
+                </button>
+              </div>
             </div>
           </div>
         </div>
