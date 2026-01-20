@@ -1,7 +1,8 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+// ADDED: signInWithPopup to the imports
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -12,7 +13,7 @@ const firebaseConfig = {
   storageBucket: "job-match-6fdd6.firebasestorage.app",
   messagingSenderId: "163551534655",
   appId: "1:163551534655:web:80a297a7d4dd6dcd66628a",
-  measurementId: "G-J1CG2RQ5VQ"
+  measurementId: "G-J1CG2RQ5VQ",
 };
 
 // Initialize Firebase
@@ -23,5 +24,10 @@ const analytics = getAnalytics(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app); // This is required for storing profile data
+
+// --- ADDED: Helper function for Google Sign-In ---
+export const signInWithGoogle = () => {
+  return signInWithPopup(auth, googleProvider);
+};
 
 export default app;

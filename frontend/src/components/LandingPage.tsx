@@ -1,5 +1,13 @@
-import React, { useLayoutEffect, useRef } from "react";
-import { ArrowRight, Github, Linkedin } from "lucide-react";
+import React, { useLayoutEffect, useRef, useState } from "react";
+import {
+  ArrowRight,
+  Github,
+  Linkedin,
+  X,
+  Mail,
+  MapPin,
+  Info,
+} from "lucide-react";
 import gsap from "gsap";
 
 interface LandingPageProps {
@@ -11,6 +19,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
   const subtextRef = useRef(null);
   const buttonRef = useRef(null);
   const footerRef = useRef(null);
+
+  // State for Modals
+  const [activeModal, setActiveModal] = useState<"none" | "about" | "contact">(
+    "none"
+  );
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
@@ -44,12 +57,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
           "-=0.8"
         );
 
-      // --- FOOTER ANIMATION (Slides up on load) ---
+      // --- FOOTER ANIMATION ---
       gsap.from(footerRef.current, {
-        y: 100, // Start below screen
+        y: 100,
         opacity: 0,
         duration: 1,
-        delay: 0.5, // Wait for hero to start
+        delay: 0.5,
         ease: "power3.out",
       });
     });
@@ -57,8 +70,110 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
     return () => ctx.revert();
   }, []);
 
+  // --- MODAL COMPONENT (Internal) ---
+  const Modal = ({
+    title,
+    children,
+    onClose,
+  }: {
+    title: string;
+    children: React.ReactNode;
+    onClose: () => void;
+  }) => (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex justify-between items-center p-6 border-b border-slate-100">
+          <h2 className="text-2xl font-black text-slate-900">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+          >
+            <X size={24} className="text-slate-500" />
+          </button>
+        </div>
+        <div className="p-6 max-h-[80vh] overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-screen overflow-hidden bg-[#FDFDFF] selection:bg-indigo-100 selection:text-indigo-900 font-sans relative flex flex-col">
+      {/* --- RENDER MODALS --- */}
+      {activeModal === "about" && (
+        <Modal title="About Wevolve" onClose={() => setActiveModal("none")}>
+          <div className="space-y-4 text-slate-600 leading-relaxed">
+            <p className="font-medium text-lg text-indigo-600">
+              Redefining Recruitment for 2026 and Beyond.
+            </p>
+            <p>
+              Wevolve is not just a job board. It is an intelligent career
+              ecosystem designed to bridge the gap between talent and
+              opportunity using advanced algorithmic matching.
+            </p>
+            <p>
+              Our platform uses weighted scoring, skill gap analysis, and
+              heuristic predictive modeling to ensure that every match is
+              meaningful. We believe in transparency, growth, and the power of
+              human potential.
+            </p>
+            <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 mt-4">
+              <h4 className="font-bold text-indigo-900 flex items-center gap-2 mb-2">
+                <Info size={18} /> Our Mission
+              </h4>
+              <p className="text-sm text-indigo-800">
+                To empower 1 million professionals to evolve their careers by
+                providing the insights they need to succeed in a rapidly
+                changing tech landscape.
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {activeModal === "contact" && (
+        <Modal title="Contact Us" onClose={() => setActiveModal("none")}>
+          <div className="space-y-6">
+            <p className="text-slate-600 mb-4">
+              Have questions or feedback? We'd love to hear from you. Fill out
+              the form below and our team will get back to you within 24 hours.
+            </p>
+
+            {/* Contact Details */}
+            <div className="flex flex-col gap-3 p-4 bg-slate-50 rounded-xl mb-4 text-sm text-slate-600">
+              <div className="flex items-start gap-3">
+                <MapPin className="shrink-0 text-indigo-600" size={18} />
+                <span>
+                  <strong>Wevolve HQ</strong>
+                  <br />
+                  42 Innovation Drive, Tech Park Sector 5,
+                  <br />
+                  Bangalore, Karnataka 560103, India
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Mail className="shrink-0 text-indigo-600" size={18} />
+                <span>support@wevolve.com</span>
+              </div>
+            </div>
+
+            {/* --- GOOGLE FORM EMBED --- */}
+            <div className="w-full aspect-[4/5] md:aspect-video bg-slate-50 rounded-xl overflow-hidden border border-slate-200">
+              <iframe
+                src="https://docs.google.com/forms/d/e/1FAIpQLSf4B9cWok1oJwCjjUiIIPH5er1xwrqs_D939Zb-6CEuQ9lWVg/viewform?embedded=true"
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                marginHeight={0}
+                marginWidth={0}
+                className="w-full h-full"
+              >
+                Loading…
+              </iframe>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* --- NAVBAR --- */}
       <nav className="fixed top-0 inset-x-0 h-20 bg-white/70 backdrop-blur-xl border-b border-slate-200/50 z-[100]">
         <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
@@ -79,17 +194,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
               Login
             </button>
             <button
-              onClick={() => onStart("signup")}
-              className="px-6 py-2.5 bg-indigo-600 text-white rounded-full text-sm font-black hover:bg-indigo-700 transition-all hover:scale-105 shadow-xl shadow-indigo-100"
+              onClick={() =>
+                window.open(
+                  "https://whatsapp.com/channel/0029VbCLPr5C6ZvZ1tKQkq1i",
+                  "_blank"
+                )
+              }
+              className="px-6 py-2.5 bg-[#25D366] text-white rounded-full text-sm font-black hover:bg-[#128C7E] transition-all hover:scale-105 shadow-xl shadow-green-100 flex items-center gap-2"
             >
-              Join Platform
+              Join Channel
             </button>
           </div>
         </div>
       </nav>
 
       {/* --- HERO SECTION --- */}
-      {/* Added pb-32 to ensure content isn't hidden behind the fixed footer */}
       <header className="flex-1 relative pt-20 px-6 flex flex-col justify-center items-center overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-gradient-to-b from-indigo-50/50 via-white to-white pointer-events-none -z-10 overflow-hidden">
           <div className="absolute top-20 left-1/4 w-96 h-96 bg-indigo-200 rounded-full blur-[120px] opacity-30 animate-pulse"></div>
@@ -101,7 +220,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             ref={headerRef}
             className="text-6xl md:text-[100px] font-black text-slate-900 leading-[0.85] tracking-tight mb-8"
           >
-            EVOLVE YOUR <br />
+            WEVOLVE YOUR <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-indigo-400">
               CAREER.
             </span>
@@ -134,16 +253,22 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Copyright */}
           <p className="text-slate-500 text-xs font-medium">
-            © 2024 Wevolve. All rights reserved.
+            © 2026 Wevolve. All rights reserved.
           </p>
 
           <div className="flex items-center gap-6">
             {/* Text Links */}
             <div className="flex gap-6 text-xs font-bold text-slate-400">
-              <button className="hover:text-white transition-colors">
+              <button
+                onClick={() => setActiveModal("about")}
+                className="hover:text-white transition-colors"
+              >
                 About
               </button>
-              <button className="hover:text-white transition-colors">
+              <button
+                onClick={() => setActiveModal("contact")}
+                className="hover:text-white transition-colors"
+              >
                 Contact
               </button>
             </div>
@@ -154,7 +279,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
             {/* Social Icons */}
             <div className="flex gap-3">
               <a
-                href="https://github.com"
+                href="https://github.com/SaanviPatil14"
                 target="_blank"
                 rel="noreferrer"
                 className="w-7 h-7 rounded-full bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-white hover:text-black transition-all duration-300"
@@ -162,7 +287,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart }) => {
                 <Github size={14} />
               </a>
               <a
-                href="https://linkedin.com"
+                href="https://linkedin.com/in/sanskar-sachin-kothari-548a08240"
                 target="_blank"
                 rel="noreferrer"
                 className="w-7 h-7 rounded-full bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-[#0077b5] hover:text-white transition-all duration-300"
