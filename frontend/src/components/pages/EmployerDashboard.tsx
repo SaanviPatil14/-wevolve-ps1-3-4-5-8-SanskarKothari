@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import {
   Briefcase,
   Plus,
-  Brain, // Swapped from BrainCircuit
+  Brain, 
   X,
   Trash2,
   Calendar,
@@ -11,7 +11,8 @@ import {
   Sparkles,
   CheckCircle2,
   Star,
-  CircleSlash // Swapped from Ban
+  CircleSlash,
+  Lock // <--- ADDED: Lock Icon for access denied screen
 } from "lucide-react";
 import { MatchResult, Job } from "../../types";
 import CandidateProfile from "./CandidateProfile";
@@ -55,6 +56,40 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
   isAiExplaining,
   aiExplanation,
 }) => {
+  // --- ADDED: AUTHORIZATION LOGIC START ---
+  const currentUser = auth.currentUser;
+  const userEmail = currentUser?.email || "";
+
+  // List of allowed emails (Whitelisted Admins)
+  const ALLOWED_EMAILS = [
+    "saanvipatil2006@gmail.com",
+    "sanskarkthr@gmail.com",
+    "darshanj495@gmail.com"
+  ];
+
+  // If the user's email is NOT in the allowed list, show Access Denied
+  if (!ALLOWED_EMAILS.includes(userEmail)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
+        <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6">
+          <Lock size={48} className="text-red-500" />
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 mb-4">Access Restricted</h2>
+        <p className="text-slate-500 max-w-md text-lg mb-8">
+          This dashboard is limited to authorized administrators only. 
+          You are currently logged in as <span className="font-bold text-slate-900">{userEmail}</span>.
+        </p>
+        <button 
+          onClick={() => auth.signOut()}
+          className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all"
+        >
+          Sign Out
+        </button>
+      </div>
+    );
+  }
+  // --- ADDED: AUTHORIZATION LOGIC END ---
+
   const [showGenerator, setShowGenerator] = useState(false);
   const [applications, setApplications] = useState<any[]>([]);
   const [selectedApplicant, setSelectedApplicant] = useState<any | null>(null);
@@ -253,10 +288,10 @@ const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
               applications.filter((a) => a.job_id === selectedJob.job_id).map((app) => (
                 <div key={app.application_id} className={`p-6 rounded-[28px] border flex items-center justify-between transition-all group ${
                   app.status === 'rejected' 
-                    ? 'bg-red-50 border-red-200 hover:bg-red-100' 
-                    : app.status === 'shortlisted'
-                    ? 'bg-emerald-50/50 border-emerald-100 hover:bg-white hover:shadow-xl'
-                    : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-xl'
+                  ? 'bg-red-50 border-red-200 hover:bg-red-100' 
+                  : app.status === 'shortlisted'
+                  ? 'bg-emerald-50/50 border-emerald-100 hover:bg-white hover:shadow-xl'
+                  : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-xl'
                 }`}>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
